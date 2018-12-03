@@ -4,6 +4,7 @@ var app = express();
 
 app.use(express.json());
 
+var port = process.env.PORT || 1337;
 
 var urls = [];
 
@@ -47,6 +48,6 @@ app.post('/shorten',(req,res) => {
     
 });
 
-app.listen(3000,() =>{
-    console.log('Server is up on port 3000');
+app.listen(port,() =>{
+    console.log(`Server is up on port ${port}`);
 });
