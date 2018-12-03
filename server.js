@@ -1,53 +1,79 @@
-const express = require('express');
-const Joi = require('joi');
+const express = require("express");
+const mongoose = require("mongoose");
+const Joi = require("joi");
 var app = express();
 
+const port = process.env.PORT || 3000;
+
+const mongo_url = process.env.MONGO_URL || "localhost";
+const mongo_port = process.env.MONGO_PORT || 27017;
+const mongo_db = process.env.MONGO_DB || "urlshortener";
+
+mongoose
+  .connect(
+    `mongodb://${mongo_url}:${mongo_port}/${mongo_db}`,
+    { useNewUrlParser: true }
+  )
+  .then(() => console.log("Connected to MongoDb"))
+  .catch(err => console.error("could not connect to mongo db", err));
+
+const ShortenedURL = mongoose.model(
+  "shortenURL",
+  new mongoose.Schema({
+    target: String,
+    shortcut: String,
+    access: [Date],
+    counter: Number
+  })
+);
+
 app.use(express.json());
-
-var port = process.env.PORT || 1337;
-
-var urls = [];
-
-app.get('/', (req,res) => {
-    res.send(urls);
+app.get("/", async (req, res) => {
+  res.send(await ShortenedURL.find().sort("shortcut"));
 });
-app.get('/:url', (req, res) => {
-    
-    const result = urls.find(s => s.shortened === req.params.url);
-    if(result){
-        res.redirect(result.target);
-        return;
-    }
-    res.send(404);
 
+app.get("/:shortcut", async (req, res) => {
+  const result = await ShortenedURL.find({
+    shortcut: req.params.shortcut
+  }).limit(1);
+  if (!result || result.length <= 0) return res.sendStatus(204);
+
+  return res.redirect(result[0].target);
 });
 
 const shortened = Joi.object().keys({
-    target: Joi.string().uri({
-        scheme: [
-            'http',
-            'https'
-          ]
-    }).required(),
-    shortened: Joi.string().required()
+  target: Joi.string()
+    .uri({
+      scheme: ["http", "https"]
+    })
+    .required(),
+  shortcut: Joi.string().required()
 });
 
 // create new entry
-app.post('/shorten',(req,res) => {
-    
-    const result = Joi.validate(req.body,shortened);
-    
-    if(result.error){
-        res.send(result.error);
-        return;
-    }
-    // check for existing url or target
-    console.log(req.body);
-    urls.push(req.body);
-    res.send(req.body);    
-    
+app.post("/shorten", async (req, res) => {
+  const validationResult = Joi.validate(req.body, shortened);
+
+  if (validationResult.error) {
+    res.send(validationResult.error);
+    return;
+  }
+
+  console.log(req.body);
+  //check if exists
+  const existingURL = await ShortenedURL.find({shortcut: req.body.shortcut});
+
+  if (existingURL && existingURL.length >= 1) {
+    res.send(`Entry "${req.body.shortcut}" already exists and is pointing to ${existingURL[0].target}`);
+    return;
+  } else {
+    const newShortcut = new ShortenedURL(req.body);
+    const result = await newShortcut.save();
+    res.send(result);
+  }
+  console.log(result);
 });
 
-app.listen(port,() =>{
-    console.log(`Server is up on port ${port}`);
+app.listen(port, () => {
+  console.log(`Server is up on port ${port}`);
 });
