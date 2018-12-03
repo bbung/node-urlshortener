@@ -5,13 +5,11 @@ var app = express();
 
 const port = process.env.PORT || 3000;
 
-const mongo_url = process.env.MONGO_URL || "localhost";
-const mongo_port = process.env.MONGO_PORT || 27017;
-const mongo_db = process.env.MONGO_DB || "urlshortener";
+const mongo_connection_string = process.env.MONGO_DB || "mongodb://localhost/urlshortener"
 
 mongoose
   .connect(
-    `mongodb://${mongo_url}:${mongo_port}/${mongo_db}`,
+    mongo_connection_string,
     { useNewUrlParser: true }
   )
   .then(() => console.log("Connected to MongoDb"))
